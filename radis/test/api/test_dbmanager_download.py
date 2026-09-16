@@ -2,7 +2,7 @@
 import pytest
 import requests
 
-from radis.api.dbmanager import DatabaseManager
+from radis.api.dbmanager import DatabaseManager, get_user_agent
 
 
 class _FakeResponse:
@@ -90,6 +90,37 @@ def run_download(tmp_path, monkeypatch):
         )
 
     return _run
+
+
+@pytest.mark.fast
+def test_user_agent_identifies_radis(manager, run_download):
+    """RADIS identifies itself to the data centres it downloads from, on both
+    the HEAD and the GET request, so that they can tell library traffic from
+    somebody clicking a link in a browser."""
+
+    from radis import __version__
+
+    session = _FakeSession(
+        head_response=_FakeResponse(
+            status_code=200,
+            headers={"content-type": "application/octet-stream"},
+        ),
+        get_response=_FakeResponse(
+            status_code=200,
+            headers={"content-type": "application/octet-stream", "content-length": "4"},
+            chunks=[b"DATA"],
+        ),
+    )
+    run_download(manager, session)
+
+    sent = [call[1]["headers"]["User-Agent"] for call in session.head_calls]
+    sent += [call[1]["headers"]["User-Agent"] for call in session.get_calls]
+    assert len(sent) == 2
+    for agent in sent:
+        assert agent == get_user_agent()
+        assert agent.startswith(f"radis/{__version__}")
+        for token in ("Mozilla", "Chrome", "Safari", "AppleWebKit"):
+            assert token not in agent
 
 
 @pytest.mark.fast

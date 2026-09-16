@@ -41,6 +41,19 @@ import pandas as pd
 from dateutil.parser import parse as parse_date
 from joblib import Parallel, delayed
 
+
+def get_user_agent():
+    """Return the ``User-Agent`` RADIS sends when downloading a database.
+
+    RADIS identifies itself, so that the data centres it downloads from can
+    tell library traffic from browser traffic and can reach the project if a
+    download pattern causes them trouble.
+    """
+    from radis import __version__
+
+    return f"radis/{__version__} (+https://github.com/radis/radis)"
+
+
 LAST_VALID_DATE = (
     "01 Jan 2010"  # set to a later date to force re-download of all databases
 )
@@ -432,7 +445,7 @@ class DatabaseManager(object):
             # Set headers to indicate we want the actual file
             headers = {
                 "Accept": "application/zip, application/octet-stream",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": get_user_agent(),
             }
 
             # First check if we can access the file
