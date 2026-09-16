@@ -30,6 +30,7 @@ def fetch_hitran(
     output="pandas",
     parallel=True,
     parse_quanta=True,
+    add_HITRAN_uncertainty_code=False,
 ):
     """Download all HITRAN lines from HITRAN website. Unzip and build a HDF5 file directly.
 
@@ -89,6 +90,18 @@ def fetch_hitran(
     parse_quanta: bool
         if ``True``, parse local & global quanta (required to identify lines
         for non-LTE calculations ; but sometimes lines are not labelled.)
+    add_HITRAN_uncertainty_code: bool
+        if ``True``, also download and keep the HITRAN uncertainty indices
+        ``ierr`` and the reference identifiers ``iref``, which give the
+        uncertainty estimate and the literature reference of each transition
+        parameter. See the `HITRAN definitions
+        <https://hitran.org/docs/definitions-and-units/>`__ for how to read
+        them. Default ``False``.
+
+        .. note::
+            the columns are stored in the HDF5 cache file. A database that was
+            downloaded without them has to be regenerated with
+            ``cache='regen'`` before they become available.
 
 
     Returns
@@ -111,6 +124,11 @@ def fetch_hitran(
         >>> Index(['id', 'iso', 'wav', 'int', 'A', 'airbrd', 'selbrd', 'El', 'Tdpair',
             'Pshft', 'gp', 'gpp', 'branch', 'jl', 'vu', 'vl'],
             dtype='object')
+
+    With per-line uncertainty indices and references::
+
+        df = fetch_hitran("CO", add_HITRAN_uncertainty_code=True, cache='regen')
+        print(df[["wav", "int", "ierr", "iref"]].head())
 
     .. minigallery:: radis.fetch_hitran
 
@@ -175,6 +193,20 @@ def fetch_hitran(
     if cache == "regen":
         ldb.remove_local_files(local_files)
     else:
+        # Raising AccuracyWarning if local_file exists but was downloaded
+        # without the HITRAN uncertainty and reference columns
+        if ldb.get_existing_files(local_files) and add_HITRAN_uncertainty_code:
+            if "ierr" not in ldb.get_columns(local_files[0]):
+                import warnings
+
+                warnings.warn(
+                    AccuracyWarning(
+                        "The local HITRAN database was downloaded without the "
+                        "uncertainty columns 'ierr' and 'iref'. Use "
+                        "cache='regen' together with "
+                        "add_HITRAN_uncertainty_code=True to download them."
+                    )
+                )
         # Raising AccuracyWarning if local_file exists and doesn't have extra columns in it
         if ldb.get_existing_files(local_files) and extra_params == "all":
             columns = ldb.get_columns(local_files[0])
@@ -222,7 +254,10 @@ def fetch_hitran(
         if main_files:
             try:
                 ldb.download_and_parse(
-                    main_files, cache=cache, parse_quanta=parse_quanta
+                    main_files,
+                    cache=cache,
+                    parse_quanta=parse_quanta,
+                    add_HITRAN_uncertainty_code=add_HITRAN_uncertainty_code,
                 )
             except OSError as err:
                 printer.warning(f"Error downloading: {err}")

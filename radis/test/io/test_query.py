@@ -157,6 +157,33 @@ def test_fetch_hitran(*args, **kwargs):
     assert df.wav.max() == 14477.377153
 
 
+# ignored by pytest with argument -m "not needs_connection"
+@pytest.mark.needs_connection
+def test_fetch_hitran_uncertainty_code(*args, **kwargs):
+    """``add_HITRAN_uncertainty_code`` keeps the HITRAN ``ierr`` and ``iref``
+    columns, which are dropped by default."""
+
+    from radis.io.hitran import fetch_hitran
+    from radis.test.utils import getTestFile
+
+    kwargs_db = dict(
+        local_databases=join(getTestFile("."), "hitran"),
+        databank_name="HITRAN-CO-TEST-UNCERTAINTY",
+        cache="regen",
+    )
+
+    df = fetch_hitran("CO", add_HITRAN_uncertainty_code=True, **kwargs_db)
+    assert "ierr" in df.columns
+    assert "iref" in df.columns
+    # ierr is the ordered list of uncertainty indices; the first digit is the
+    # index for the line position and is always a valid HITRAN error code
+    assert df["ierr"].notna().all()
+
+    df_default = fetch_hitran("CO", **kwargs_db)
+    assert "ierr" not in df_default.columns
+    assert "iref" not in df_default.columns
+
+
 def test_hitran_isotopologues(*args, **kwargs):
     """Isotopologues to download are the ones HITRAN actually has, capped at 9"""
 
