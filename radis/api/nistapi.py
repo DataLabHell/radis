@@ -200,9 +200,14 @@ def nist2df(file, species):
         df[["gl", "gu"]] - 1
     ) / 2  # calculate J from g rather than requesting from NIST to avoid having to deal with half-integer '1/2' etc notation that NIST returns
     df["A"] = df["Aki(s^-1)"]
+    # NIST ASD accuracy grade of the transition probability, a letter code
+    # ("AAA" to "E", see https://physics.nist.gov/PhysRefData/ASD/Html/lineshelp.html).
+    # It is the only per-line uncertainty estimate ASD serves for Aki, so it is
+    # kept next to the "A" column it qualifies.
+    df["Acc"] = df["Acc"].astype(str).str.strip()
 
     df[:] = df[::-1]
 
-    df = df[["wav", "A", "gl", "El", "gu", "Eu", "jl", "ju"]]
+    df = df[["wav", "A", "Acc", "gl", "El", "gu", "Eu", "jl", "ju"]]
 
     return df
